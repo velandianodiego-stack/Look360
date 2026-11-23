@@ -1,0 +1,784 @@
+openapi: 3.0.3
+info:
+  title: ModaStyle API
+  description: Supabase REST and payment APIs used by the ModaStyle Flutter application.
+  version: 1.0.0
+  license:
+    name: Private project API
+    url: https://supabase.com/docs/guides/api
+
+servers:
+  - url: https://dlaygjudeehcvlznhhxi.supabase.co
+    description: Supabase project
+
+tags:
+  - name: Products
+    description: Product catalog operations.
+  - name: Authentication
+    description: Supabase authentication operations.
+  - name: Payments
+    description: Stripe payment operations.
+  - name: Profiles
+    description: User profile operations.
+  - name: Orders
+    description: Order operations.
+  - name: Order items
+    description: Order line item operations.
+  - name: Returns
+    description: Return request operations.
+  - name: RPC
+    description: Database function operations.
+
+security:
+  - supabaseApiKey: []
+    supabaseBearer: []
+
+components:
+  securitySchemes:
+    supabaseApiKey:
+      type: apiKey
+      in: header
+      name: apikey
+      description: Supabase anon key. Never use a service-role key here.
+    supabaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase access token. Use the anon key for the public Edge Function request.
+
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        precio:
+          type: number
+          format: double
+        imagen_url:
+          type: string
+          format: uri
+        categoria:
+          type: string
+        tallas:
+          type: array
+          items:
+            type: string
+        stock:
+          type: integer
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        rol:
+          type: string
+        telefono:
+          type: string
+        direccion:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuario_id:
+          type: string
+          format: uuid
+        total:
+          type: number
+        estado:
+          type: string
+        stripe_payment_id:
+          type: string
+        fecha:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pedido_id:
+          type: string
+          format: uuid
+        producto_id:
+          type: string
+          format: uuid
+        nombre_producto:
+          type: string
+        talla:
+          type: string
+        cantidad:
+          type: integer
+        precio_unitario:
+          type: number
+
+    ReturnRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pedido_id:
+          type: string
+          format: uuid
+        usuario_id:
+          type: string
+          format: uuid
+        motivo:
+          type: string
+        estado:
+          type: string
+        fecha:
+          type: string
+          format: date-time
+
+    PaymentRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [verify_checkout]
+          description: Use verify_checkout to verify a completed Checkout session.
+        sessionId:
+          type: string
+          description: Stripe Checkout session ID, required when action is verify_checkout.
+        amount:
+          type: integer
+          minimum: 1
+          description: Total in Colombian pesos. The function converts it to Stripe minor units.
+          example: 2000
+        checkout:
+          type: boolean
+          description: Set true to create a Stripe Checkout session instead of a PaymentIntent.
+          example: false
+        successUrl:
+          type: string
+          format: uri
+          description: Required when checkout is true.
+          example: https://example.com/payment-success
+        cancelUrl:
+          type: string
+          format: uri
+          description: Required when checkout is true.
+          example: https://example.com/payment-cancelled
+
+    AuthCredentials:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        refresh_token:
+          type: string
+        auth_code:
+          type: string
+        code_verifier:
+          type: string
+
+    SignUpRequest:
+      allOf:
+        - $ref: '#/components/schemas/AuthCredentials'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                telefono:
+                  type: string
+
+    PaymentResponse:
+      type: object
+      properties:
+        clientSecret:
+          type: string
+          description: Stripe PaymentIntent client secret.
+        checkoutUrl:
+          type: string
+          format: uri
+          description: Stripe Checkout URL when checkout is true.
+        paid:
+          type: boolean
+          description: Whether the Checkout session has been paid.
+        paymentId:
+          type: string
+          nullable: true
+          description: Stripe PaymentIntent ID returned when verifying Checkout.
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    AuthResponse:
+      type: object
+      description: Supabase authentication response containing user and session data.
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          type: object
+
+  parameters:
+    select:
+      name: select
+      in: query
+      schema:
+        type: string
+        default: '*'
+    order:
+      name: order
+      in: query
+      schema:
+        type: string
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+    productIdFilter:
+      name: id
+      in: query
+      description: PostgREST filter for the product id, for example eq. UUID.
+      schema:
+        type: string
+    profileIdFilter:
+      name: id
+      in: query
+      description: PostgREST filter for the profile id, for example eq. UUID.
+      schema:
+        type: string
+    orderIdFilter:
+      name: id
+      in: query
+      description: PostgREST filter for the order id, for example eq. UUID.
+      schema:
+        type: string
+    orderItemIdFilter:
+      name: id
+      in: query
+      description: PostgREST filter for the order item id, for example eq. UUID.
+      schema:
+        type: string
+    returnIdFilter:
+      name: id
+      in: query
+      description: PostgREST filter for the return request id, for example eq. UUID.
+      schema:
+        type: string
+
+paths:
+  /auth/v1/signup:
+    post:
+      operationId: signUp
+      tags: [Authentication]
+      summary: Register a user
+      security:
+        - supabaseApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '200':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid registration data
+
+  /auth/v1/token:
+    post:
+      operationId: signInWithPassword
+      tags: [Authentication]
+      summary: Sign in with email and password
+      security:
+        - supabaseApiKey: []
+      parameters:
+        - name: grant_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [password, pkce, refresh_token]
+            default: password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '200':
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid credentials
+
+  /auth/v1/recover:
+    post:
+      operationId: resetPasswordForEmail
+      tags: [Authentication]
+      summary: Send a password reset email
+      security:
+        - supabaseApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                redirect_to:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Reset email requested
+        '400':
+          description: Invalid email
+
+  /auth/v1/logout:
+    post:
+      operationId: signOut
+      tags: [Authentication]
+      summary: Sign out the current user
+      security:
+        - supabaseApiKey: []
+          supabaseBearer: []
+      responses:
+        '204':
+          description: Signed out
+
+  /auth/v1/user:
+    put:
+      operationId: updateAuthUser
+      tags: [Authentication]
+      summary: Update the authenticated user
+      security:
+        - supabaseApiKey: []
+          supabaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: User updated
+        '401':
+          description: Missing or invalid access token
+
+  /rest/v1/productos:
+    get:
+      operationId: listProducts
+      tags:
+        - Products
+      summary: List products
+      parameters:
+        - name: select
+          in: query
+          schema:
+            type: string
+            default: '*'
+          example: '*'
+        - name: nombre
+          in: query
+          description: PostgREST filter, for example ilike.*shirt*.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/productIdFilter'
+      security:
+        - supabaseApiKey: []
+          supabaseBearer: []
+      responses:
+        '200':
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          description: Missing or invalid API credentials
+        '403':
+          description: Row Level Security denied the request
+    post:
+      operationId: createProduct
+      tags: [Products]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Product created
+    patch:
+      operationId: updateProducts
+      tags: [Products]
+      summary: Update products matching filters
+      parameters:
+        - $ref: '#/components/parameters/productIdFilter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '204':
+          description: Products updated
+    delete:
+      operationId: deleteProducts
+      tags: [Products]
+      summary: Delete products matching filters
+      parameters:
+        - $ref: '#/components/parameters/productIdFilter'
+      responses:
+        '204':
+          description: Products deleted
+
+  /rest/v1/perfiles:
+    get:
+      operationId: listProfiles
+      tags: [Profiles]
+      summary: List profiles
+      parameters:
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/profileIdFilter'
+      responses:
+        '200':
+          description: Profile list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Profile'
+    post:
+      operationId: createProfile
+      tags: [Profiles]
+      summary: Create a profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      responses:
+        '201':
+          description: Profile created
+    patch:
+      operationId: updateProfiles
+      tags: [Profiles]
+      summary: Update profiles matching filters
+      parameters:
+        - $ref: '#/components/parameters/profileIdFilter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      responses:
+        '204':
+          description: Profiles updated
+    delete:
+      operationId: deleteProfiles
+      tags: [Profiles]
+      summary: Delete profiles matching filters
+      parameters:
+        - $ref: '#/components/parameters/profileIdFilter'
+      responses:
+        '204':
+          description: Profiles deleted
+
+  /rest/v1/pedidos:
+    get:
+      operationId: listOrders
+      tags: [Orders]
+      summary: List orders
+      parameters:
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/orderIdFilter'
+      responses:
+        '200':
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      operationId: createOrder
+      tags: [Orders]
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '201':
+          description: Order created
+    patch:
+      operationId: updateOrders
+      tags: [Orders]
+      summary: Update orders matching filters
+      parameters:
+        - $ref: '#/components/parameters/orderIdFilter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '204':
+          description: Orders updated
+    delete:
+      operationId: deleteOrders
+      tags: [Orders]
+      summary: Delete orders matching filters
+      parameters:
+        - $ref: '#/components/parameters/orderIdFilter'
+      responses:
+        '204':
+          description: Orders deleted
+
+  /rest/v1/pedido_items:
+    get:
+      operationId: listOrderItems
+      tags: [Order items]
+      summary: List order items
+      parameters:
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Order item list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderItem'
+    post:
+      operationId: createOrderItem
+      tags: [Order items]
+      summary: Create an order item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItem'
+      responses:
+        '201':
+          description: Order item created
+    patch:
+      operationId: updateOrderItems
+      tags: [Order items]
+      summary: Update order items matching filters
+      parameters:
+        - $ref: '#/components/parameters/orderItemIdFilter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItem'
+      responses:
+        '204':
+          description: Order items updated
+    delete:
+      operationId: deleteOrderItems
+      tags: [Order items]
+      summary: Delete order items matching filters
+      parameters:
+        - $ref: '#/components/parameters/orderItemIdFilter'
+      responses:
+        '204':
+          description: Order items deleted
+
+  /rest/v1/devoluciones:
+    get:
+      operationId: listReturns
+      tags: [Returns]
+      summary: List return requests
+      parameters:
+        - $ref: '#/components/parameters/select'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Return request list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReturnRequest'
+    post:
+      operationId: createReturn
+      tags: [Returns]
+      summary: Create a return request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnRequest'
+      responses:
+        '201':
+          description: Return request created
+    patch:
+      operationId: updateReturns
+      tags: [Returns]
+      summary: Update return requests matching filters
+      parameters:
+        - $ref: '#/components/parameters/returnIdFilter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnRequest'
+      responses:
+        '204':
+          description: Return requests updated
+    delete:
+      operationId: deleteReturns
+      tags: [Returns]
+      summary: Delete return requests matching filters
+      parameters:
+        - $ref: '#/components/parameters/returnIdFilter'
+      responses:
+        '204':
+          description: Return requests deleted
+
+  /rest/v1/rpc/es_admin:
+    get:
+      operationId: isAdminGet
+      tags: [RPC]
+      summary: Check administrator status with a GET request
+      responses:
+        '200':
+          description: RPC result
+    post:
+      operationId: isAdmin
+      tags: [RPC]
+      summary: Check whether the current user is an administrator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: RPC result
+
+  /functions/v1/create-payment-intent:
+    post:
+      operationId: createPaymentIntent
+      tags:
+        - Payments
+      summary: Create a Stripe PaymentIntent or Checkout session
+      description: The deployed function has JWT verification disabled, but the Flutter client sends both Supabase headers.
+      security:
+        - supabaseApiKey: []
+          supabaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            examples:
+              paymentIntent:
+                summary: Create a PaymentIntent
+                value:
+                  amount: 2000
+              checkout:
+                summary: Create a Checkout session
+                value:
+                  amount: 2000
+                  checkout: true
+                  successUrl: https://example.com/payment-success
+                  cancelUrl: https://example.com/payment-cancelled
+              verifyCheckout:
+                summary: Verify a completed Checkout session
+                value:
+                  action: verify_checkout
+                  sessionId: cs_test_example
+      responses:
+        '200':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Invalid request or Stripe error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Stripe secret is not configured in Supabase
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
